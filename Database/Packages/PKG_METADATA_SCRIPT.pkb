@@ -96,7 +96,7 @@ CREATE OR REPLACE PACKAGE BODY PKG_METADATA_SCRIPT AS
    
    
    PROCEDURE add_filter_columns_p( ip_stmt_hndl          IN NUMBER 
-                                 , ip_break_level        IN NUMBER
+                                 , ip_break_level        IN NUMBER   DEFAULT 1
                                  , ip_column_01_value    IN VARCHAR2 DEFAULT NULL
                                  , ip_column_02_value    IN VARCHAR2 DEFAULT NULL )
    IS
@@ -238,6 +238,9 @@ Q'{INSERT
                 WHERE statement_handle = ip_stmt_hndl
                 ORDER BY id )
          LOOP
+            assert( rec_gt_metadata_sf_col_val.generator_script IS NOT NULL
+                  , 'GT_METADATA_SF_COL_VAL.generator_script is NULL, run "gen_filter_meta_scripts_p" first' )
+            ;
             EXECUTE IMMEDIATE rec_gt_metadata_sf_col_val.generator_script;
          END LOOP;
       END IF;
