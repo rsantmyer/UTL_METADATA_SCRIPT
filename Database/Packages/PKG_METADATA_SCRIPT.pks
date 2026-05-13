@@ -54,20 +54,14 @@ CREATE OR REPLACE PACKAGE PKG_METADATA_SCRIPT AS
    -- ip_column_01_value: Optional - The filter value for the first column (used when ip_break_level is 1).
    -- ip_column_02_value: Optional - The filter value for the second column (used when ip_break_level is 2).
    -- Usage:
-   -- PKG_METADATA_SCRIPT.add_filter_columns_p(v_stmt_handle, 1);
-   -- PKG_METADATA_SCRIPT.add_filter_columns_p(v_stmt_handle, 1, 'FILTER_VALUE_1');
-   -- PKG_METADATA_SCRIPT.add_filter_columns_p(v_stmt_handle, 2, 'FILTER_VALUE_1', 'FILTER_VALUE_2');
+   -- PKG_METADATA_SCRIPT.add_filter_columns_p(v_stmt_handle, 1); -- No filter values, just break by first PK column. Generates scripts for each distinct value in the first PK column.
+   -- PKG_METADATA_SCRIPT.add_filter_columns_p(v_stmt_handle, 1, 'FILTER_VALUE_1'); -- Filter by first PK column. Generates script only for rows where first PK column = 'FILTER_VALUE_1'.
+   -- PKG_METADATA_SCRIPT.add_filter_columns_p(v_stmt_handle, 2); -- No filter values, just break by the first and second PK column. Generates scripts for each distinct combination of values in the first and second PK columns.
+   -- PKG_METADATA_SCRIPT.add_filter_columns_p(v_stmt_handle, 2, 'FILTER_VALUE_1', 'FILTER_VALUE_2'); -- Filter by second PK column. Generates script only for rows where first PK column = 'FILTER_VALUE_1' and second PK column = 'FILTER_VALUE_2'.
       PROCEDURE add_filter_columns_p( ip_stmt_hndl          IN NUMBER 
                                     , ip_break_level        IN NUMBER   DEFAULT 1
                                     , ip_column_01_value    IN VARCHAR2 DEFAULT NULL
                                     , ip_column_02_value    IN VARCHAR2 DEFAULT NULL );
-
-   -- close_handle: Closes the session and releases resources associated with the provided statement handle.
-   -- Parameters:
-   -- ip_stmt_hndl: The statement handle returned by open_handle_f that identifies the session to be closed.
-   -- Usage:
-   -- PKG_METADATA_SCRIPT.close_handle(v_stmt_handle);
-   PROCEDURE close_handle( ip_stmt_hndl          IN NUMBER );
    
    -- gen_meta_script_p: Generates the metadata script based on the provided statement handle.
    -- Parameters:
@@ -89,7 +83,14 @@ CREATE OR REPLACE PACKAGE PKG_METADATA_SCRIPT AS
    -- Usage:
    -- PKG_METADATA_SCRIPT.gen_data_script_p(v_stmt_handle);
    PROCEDURE gen_data_script_p( ip_stmt_hndl IN NUMBER );
-   
+
+   -- close_handle: Closes the session and releases resources associated with the provided statement handle.
+   -- Parameters:
+   -- ip_stmt_hndl: The statement handle returned by open_handle_f that identifies the session to be closed.
+   -- Usage:
+   -- PKG_METADATA_SCRIPT.close_handle(v_stmt_handle);
+   PROCEDURE close_handle( ip_stmt_hndl          IN NUMBER );
+
    -- Added in version 1.1 to return generated script as pipelined function
    -- Returns the generated metadata script as a pipelined function, allowing retrieval of script lines one at a time.
    -- Parameters:
