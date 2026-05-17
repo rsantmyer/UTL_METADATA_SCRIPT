@@ -383,22 +383,21 @@ Q'[DECLARE
    --
    CURSOR C1_CUR IS
    SELECT *
-     FROM :source_schema:.:source_table:
+     FROM :source_table:
     WHERE :source_filter:
     ORDER BY :order_by_clause:;
    --
    CURSOR C_COLUMN_INFO IS
    SELECT *
-     FROM ALL_TAB_COLUMNS
-    WHERE OWNER = ':source_schema:'
-      AND TABLE_NAME = ':source_table:'
+     FROM USER_TAB_COLUMNS
+    WHERE TABLE_NAME = ':source_table:'
     ORDER BY COLUMN_ID;
 
    PROCEDURE print_header
    IS
    BEGIN
       v_output_clob :=   'DECLARE'||CHR(10)
-                       ||'   TYPE t_:source_table: IS TABLE OF :source_schema:.:source_table:%ROWTYPE INDEX BY BINARY_INTEGER;'
+                       ||'   TYPE t_:source_table: IS TABLE OF :source_table:%ROWTYPE INDEX BY BINARY_INTEGER;'
                        ||CHR(10)
                        ||'   :collection_name: t_:source_table:;'
                        ||CHR(10)
@@ -416,9 +415,8 @@ Q'[DECLARE
    BEGIN
       SELECT COUNT(*)
         INTO v_current_column_cnt
-        FROM ALL_TAB_COLUMNS
-       WHERE OWNER = ':source_schema:'
-         AND TABLE_NAME = ':source_table:';
+        FROM USER_TAB_COLUMNS
+       WHERE TABLE_NAME = ':source_table:';
 
       assert(v_current_column_cnt = :source_table_col_count:, 'Column count differs from expected. Modify the "UPDATE SET" clause and current column count.');
 
@@ -427,7 +425,7 @@ Q'|-----------------------------------------------------------------------------
 -------------------------------------------------------------------------------- 
 -------------------------------------------------------------------------------- 
    FORALL i IN :collection_name:.FIRST..:collection_name:.LAST
-      MERGE INTO :source_schema:.:source_table: A
+      MERGE INTO :source_table: A
          USING (SELECT NULL FROM dual)
             ON (
 :on_clause:
@@ -532,9 +530,8 @@ BEGIN
 
    SELECT MAX(LENGTH(column_name))
      INTO v_max_column_name_len
-     FROM all_tab_columns
-    WHERE OWNER = ':source_schema:'
-      AND TABLE_NAME = ':source_table:';
+     FROM user_tab_columns
+    WHERE TABLE_NAME = ':source_table:';
       
    v_rpad_amount := v_collection_name_len + v_max_column_name_len + 6 + 1; --LENGTH('(V_I).') + SPACE
 
@@ -565,19 +562,19 @@ BEGIN
          
          CASE l_all_tab_col(I).DATA_TYPE
          WHEN 'VARCHAR2' THEN
-            EXECUTE IMMEDIATE 'SELECT '||l_all_tab_col(i).column_name||' FROM :source_schema:.:source_table: WHERE :pk_predicate_clause:'
+            EXECUTE IMMEDIATE 'SELECT '||l_all_tab_col(i).column_name||' FROM :source_table: WHERE :pk_predicate_clause:'
             INTO l_anydata(l_all_tab_col(I).column_name).VARCHAR_DATA 
             USING IN :pk_using_clause:;
          WHEN 'NUMBER' THEN
-            EXECUTE IMMEDIATE 'SELECT '||l_all_tab_col(i).column_name||' FROM :source_schema:.:source_table: WHERE :pk_predicate_clause:'
+            EXECUTE IMMEDIATE 'SELECT '||l_all_tab_col(i).column_name||' FROM :source_table: WHERE :pk_predicate_clause:'
             INTO l_anydata(l_all_tab_col(I).column_name).NUMBER_DATA 
             USING IN :pk_using_clause:;
          WHEN 'DATE' THEN
-            EXECUTE IMMEDIATE 'SELECT '||l_all_tab_col(i).column_name||' FROM :source_schema:.:source_table: WHERE :pk_predicate_clause:'
+            EXECUTE IMMEDIATE 'SELECT '||l_all_tab_col(i).column_name||' FROM :source_table: WHERE :pk_predicate_clause:'
             INTO l_anydata(l_all_tab_col(I).column_name).DATE_DATA 
             USING IN :pk_using_clause:;
          WHEN 'CLOB' THEN
-            EXECUTE IMMEDIATE 'SELECT '||l_all_tab_col(i).column_name||' FROM :source_schema:.:source_table: WHERE :pk_predicate_clause:'
+            EXECUTE IMMEDIATE 'SELECT '||l_all_tab_col(i).column_name||' FROM :source_table: WHERE :pk_predicate_clause:'
             INTO l_anydata(l_all_tab_col(I).column_name).CLOB_DATA 
             USING IN :pk_using_clause:;
          END CASE;
@@ -619,7 +616,6 @@ END; ]';
       rec_gt_metadata_script.generator_script := REPLACE(rec_gt_metadata_script.generator_script, ':order_by_clause:'        , g(ip_stmt_hndl).v_order_by_clause );
       --                                                                                                                     
       rec_gt_metadata_script.generator_script := REPLACE(rec_gt_metadata_script.generator_script, ':collection_name:'        , g(ip_stmt_hndl).v_collection_name );
-      rec_gt_metadata_script.generator_script := REPLACE(rec_gt_metadata_script.generator_script, ':source_schema:'          , rec_gt_metadata_script.schema_name );
       rec_gt_metadata_script.generator_script := REPLACE(rec_gt_metadata_script.generator_script, ':source_table:'           , rec_gt_metadata_script.table_name );
       rec_gt_metadata_script.generator_script := REPLACE(rec_gt_metadata_script.generator_script, ':source_table_col_count:' , g(ip_stmt_hndl).v_source_table_col_count );
       rec_gt_metadata_script.generator_script := REPLACE(rec_gt_metadata_script.generator_script, ':statement_handle:'       , ip_stmt_hndl );
