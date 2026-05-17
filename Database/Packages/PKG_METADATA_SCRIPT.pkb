@@ -103,7 +103,9 @@ CREATE OR REPLACE PACKAGE BODY PKG_METADATA_SCRIPT AS
       rec_gt_metadata_script      gt_metadata_script%ROWTYPE;
       rec_constraint              all_constraints%ROWTYPE;
       rec_gt_metadata_sf_col_val  gt_metadata_sf_col_val%ROWTYPE;
-      v_filter_script             VARCHAR2(4000); 
+      v_filter_script             VARCHAR2(4000);
+      v_col1_name                 VARCHAR2(30);
+      v_col1_data_type            VARCHAR2(30);
    BEGIN
       assert( ip_break_level IN (1,2)
             , 'Only break_level "1" and "2" are supported; Found: '
@@ -129,7 +131,7 @@ Q'{INSERT
         , ROWNUM
         , :pk_col_01:
         , :pk_col_02: 
-     FROM (SELECT DISTINCT :pk_col_01:, :pk_col_02: FROM }' || rec_gt_metadata_script.schema_name || '.' || rec_gt_metadata_script.table_name || Q'{ ORDER BY :pk_col_01: , :pk_col_02: ) }';
+     FROM (SELECT DISTINCT :pk_col_01:, :pk_col_02: FROM }' || rec_gt_metadata_script.schema_name || '.' || rec_gt_metadata_script.table_name || Q'{ WHERE :filter_where_clause: ORDER BY :pk_col_01: , :pk_col_02: ) }';
         
       SELECT *
         INTO rec_constraint
@@ -172,6 +174,10 @@ Q'{INSERT
 
          v_filter_script := REPLACE(v_filter_script, ':pk_col_'||TO_CHAR(rec.position, 'FM09')||':', rec.column_name);
          rec_gt_metadata_script.break_by_leading_pk_cols := rec_gt_metadata_script.break_by_leading_pk_cols + 1;
+         IF rec.position = 1 THEN
+            v_col1_name      := rec.column_name;
+            v_col1_data_type := rec.data_type;
+         END IF;
       END LOOP;
       
       IF ( rec_gt_metadata_script.break_by_leading_pk_cols < 2 )
@@ -184,17 +190,29 @@ Q'{INSERT
            , filter_provided = CASE WHEN ip_column_01_value IS NULL THEN 'N' ELSE 'Y' END
        WHERE statement_handle = ip_stmt_hndl;
 
-      IF ip_column_01_value IS NOT NULL THEN
+      IF ip_column_01_value IS NOT NULL AND ip_break_level > 1 AND ip_column_02_value IS NULL THEN
+         -- Level-1 filter on a level-2+ break: enumerate all col-2 values where col-1 = filter_value
+         CASE v_col1_data_type
+         WHEN 'VARCHAR2' THEN
+            v_filter_script := REPLACE(v_filter_script, ':filter_where_clause:',
+                                       v_col1_name || ' = ' || Q'<Q'{>' || ip_column_01_value || Q'<}'>');
+         WHEN 'NUMBER' THEN
+            v_filter_script := REPLACE(v_filter_script, ':filter_where_clause:',
+                                       v_col1_name || ' = ' || ip_column_01_value);
+         END CASE;
+         EXECUTE IMMEDIATE v_filter_script;
+      ELSIF ip_column_01_value IS NOT NULL THEN
          rec_gt_metadata_sf_col_val.statement_handle       := ip_stmt_hndl;
          rec_gt_metadata_sf_col_val.id                     := 1;
          rec_gt_metadata_sf_col_val.filter_column_01_value := ip_column_01_value;
          rec_gt_metadata_sf_col_val.filter_column_02_value := ip_column_02_value;
-      
-         INSERT 
+
+         INSERT
            INTO gt_metadata_sf_col_val
          VALUES rec_gt_metadata_sf_col_val;
       ELSE
          --we need to find all distinct values and add them
+         v_filter_script := REPLACE(v_filter_script, ':filter_where_clause:', '1=1');
          EXECUTE IMMEDIATE v_filter_script;
       END IF;
        
